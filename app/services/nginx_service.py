@@ -25,24 +25,38 @@ server {{
     error_log  /var/log/nginx/{domain}.error.log;
 
     client_max_body_size 100M;
-
+{resolver_block}
     location / {{
-        proxy_pass {scheme}://{host}:{port};
+        proxy_pass {scheme}://{upstream};
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        proxy_set_header Host {host_header};
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
-{websocket_block}
-        proxy_read_timeout 90s;
-        proxy_send_timeout 90s;
+{websocket_block}{ssl_backend_block}
+        proxy_redirect off;
+        proxy_read_timeout {read_timeout}s;
+        proxy_send_timeout {send_timeout}s;
+        proxy_connect_timeout {connect_timeout}s;
     }}
 }}
 """
 
 WEBSOCKET_BLOCK = """        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+"""
+
+# When proxying to an HTTPS backend (especially a CDN/PaaS like base44, Vercel,
+# Netlify, Cloudflare), we need SNI plus a DNS resolver so nginx can re-resolve
+# the upstream hostname at request time.
+SSL_BACKEND_BLOCK = """        proxy_ssl_server_name on;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+"""
+
+RESOLVER_BLOCK = """
+    resolver 1.1.1.1 8.8.8.8 valid=300s;
+    resolver_timeout 5s;
 """
 
 
@@ -55,12 +69,52 @@ def enabled_path(domain: str) -> Path:
 
 
 def render_config(proxy: Proxy) -> str:
+    """
+    Generate an nginx config for a proxy.
+
+    Two cases the template handles differently:
+
+    1. Local/LAN backend (default): proxy to host:port over HTTP, send the
+       visitor's Host header through, short timeouts.
+
+    2. External HTTPS backend (e.g. base44.app, foo.vercel.app): proxy to the
+       hostname over HTTPS, override the Host header so the upstream platform
+       knows which tenant to serve, enable SNI, longer timeouts, DNS resolver.
+
+    The trigger for case 2 is `target_scheme == "https"`. When that's set we
+    also assume the target_host is a hostname (no port suffix in upstream).
+    """
+    is_external_https = proxy.target_scheme == "https"
+
+    if is_external_https:
+        # CDN/PaaS backend - omit the :port unless it's non-standard
+        if proxy.target_port == 443:
+            upstream = proxy.target_host
+        else:
+            upstream = f"{proxy.target_host}:{proxy.target_port}"
+        host_header = proxy.host_header_override or proxy.target_host
+        ssl_backend_block = SSL_BACKEND_BLOCK
+        resolver_block = RESOLVER_BLOCK
+        read_timeout = send_timeout = connect_timeout = 300
+    else:
+        upstream = f"{proxy.target_host}:{proxy.target_port}"
+        host_header = proxy.host_header_override or "$host"
+        ssl_backend_block = ""
+        resolver_block = ""
+        read_timeout = send_timeout = 90
+        connect_timeout = 60
+
     return HTTP_TEMPLATE.format(
         domain=proxy.domain,
         scheme=proxy.target_scheme,
-        host=proxy.target_host,
-        port=proxy.target_port,
+        upstream=upstream,
+        host_header=host_header,
         websocket_block=WEBSOCKET_BLOCK if proxy.websocket else "",
+        ssl_backend_block=ssl_backend_block,
+        resolver_block=resolver_block,
+        read_timeout=read_timeout,
+        send_timeout=send_timeout,
+        connect_timeout=connect_timeout,
     )
 
 

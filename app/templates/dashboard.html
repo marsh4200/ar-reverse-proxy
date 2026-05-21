@@ -90,7 +90,16 @@
                         Create →
                     </button>
                 </div>
-                <div class="md:col-span-12 flex items-center gap-6 pt-2">
+                <div class="md:col-span-12 flex flex-col md:flex-row gap-4 pt-2 border-t border-slate-800/60">
+                    <div class="flex-1">
+                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                            Host header override <span class="text-slate-600 normal-case tracking-normal">— optional, for external HTTPS backends (e.g. <code class="text-cyan-400/70">myapp.base44.app</code>)</span>
+                        </label>
+                        <input name="host_header_override" placeholder="leave empty to forward visitor's domain"
+                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                    </div>
+                </div>
+                <div class="md:col-span-12 flex items-center gap-6 pt-1">
                     <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
                         <input type="checkbox" name="ssl_enabled" class="accent-cyan-400">
                         Auto-SSL (certbot)

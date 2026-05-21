@@ -16,6 +16,7 @@ class ProxyCreate(BaseModel):
     target_scheme: str = Field("http", pattern="^(http|https)$")
     ssl_enabled: bool = False
     websocket: bool = True
+    host_header_override: str = ""
     notes: str = ""
 
     @field_validator("domain")
@@ -33,6 +34,7 @@ class ProxyUpdate(BaseModel):
     target_scheme: Optional[str] = Field(None, pattern="^(http|https)$")
     ssl_enabled: Optional[bool] = None
     websocket: Optional[bool] = None
+    host_header_override: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -44,6 +46,7 @@ class ProxyOut(BaseModel):
     target_scheme: str
     ssl_enabled: bool
     websocket: bool
+    host_header_override: str
     notes: str
     created_at: datetime
     updated_at: datetime

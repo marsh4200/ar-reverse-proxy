@@ -93,6 +93,7 @@ async function createProxy(e) {
         target_scheme: fd.get("target_scheme"),
         ssl_enabled: fd.get("ssl_enabled") === "on",
         websocket: fd.get("websocket") === "on",
+        host_header_override: (fd.get("host_header_override") || "").trim(),
         notes: "",
     };
 

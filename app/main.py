@@ -45,6 +45,19 @@ def on_startup() -> None:
     """Create tables and bootstrap the default admin user."""
     Base.metadata.create_all(bind=engine)
 
+    # Lightweight in-place migration: add columns to existing tables if missing.
+    # SQLAlchemy's create_all() only creates missing tables, not missing columns.
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    proxy_cols = {c["name"] for c in inspector.get_columns("proxies")}
+    if "host_header_override" not in proxy_cols:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE proxies ADD COLUMN host_header_override "
+                "VARCHAR(255) NOT NULL DEFAULT ''"
+            ))
+        logger.info("Migrated: added proxies.host_header_override column")
+
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
