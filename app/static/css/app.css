@@ -1,0 +1,24 @@
+/* Custom overrides for ar-reverse-proxy */
+
+body {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+input::selection, textarea::selection {
+    background: rgba(34, 211, 238, 0.3);
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0b0e14; }
+::-webkit-scrollbar-thumb { background: #1e293b; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+/* Disable autofill yellow */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #e2e8f0;
+    -webkit-box-shadow: 0 0 0px 1000px rgba(0,0,0,0.4) inset;
+    transition: background-color 5000s ease-in-out 0s;
+}

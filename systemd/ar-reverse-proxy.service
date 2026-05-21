@@ -1,0 +1,23 @@
+[Unit]
+Description=AR Reverse Proxy Manager
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/ar-reverse-proxy
+EnvironmentFile=-/etc/ar-reverse-proxy/env
+ExecStart=/opt/ar-reverse-proxy/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 9913
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening (we still need root for nginx + certbot)
+NoNewPrivileges=false
+ProtectSystem=false
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · AR Reverse Proxy{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur-sm sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                    <span class="text-xs uppercase tracking-[0.3em] text-cyan-400/80">ar-reverse-proxy</span>
+                </div>
+                <span class="text-slate-700">/</span>
+                <span class="text-xs text-slate-500">v<span id="local-version">{{ version }}</span></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="btn-update"
+                        class="text-xs uppercase tracking-widest px-3 py-2 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 transition-colors">
+                    <span id="update-label">Check for updates</span>
+                </button>
+                <span class="text-slate-700">·</span>
+                <span class="text-xs text-slate-500">{{ user.username }}</span>
+                <a href="/logout" class="text-xs text-slate-400 hover:text-red-300 transition-colors">logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-12">
+        <!-- Hero -->
+        <div class="mb-12">
+            <p class="text-xs uppercase tracking-[0.3em] text-cyan-400/80 mb-3">Control plane</p>
+            <h1 class="text-6xl md:text-7xl text-slate-100 leading-none"
+                style="font-family: 'Instrument Serif', serif;">
+                Reverse <em class="text-cyan-300">proxies</em>
+            </h1>
+            <p class="mt-4 text-slate-500 max-w-xl">
+                Route domains to internal services. nginx config is generated,
+                validated, and reloaded automatically. SSL via Let's Encrypt.
+            </p>
+        </div>
+
+        <!-- Update banner -->
+        <div id="update-banner" class="hidden mb-8 border border-cyan-500/40 bg-cyan-500/5 p-5">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <div class="text-xs uppercase tracking-widest text-cyan-300 mb-1">Update available</div>
+                    <div class="text-sm text-slate-300">
+                        <span id="banner-local"></span> → <span id="banner-remote" class="text-cyan-300 font-bold"></span>
+                    </div>
+                </div>
+                <button id="btn-run-update"
+                        class="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-5 py-2 text-xs uppercase tracking-widest transition-colors">
+                    Install update →
+                </button>
+            </div>
+            <div id="update-log" class="hidden mt-4 text-xs text-slate-400 font-mono whitespace-pre-wrap border-t border-cyan-500/20 pt-3"></div>
+        </div>
+
+        <!-- Add form -->
+        <section class="mb-10">
+            <h2 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Add proxy</h2>
+            <form id="proxy-form" class="border border-slate-800 bg-slate-900/30 p-6 grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div class="md:col-span-4">
+                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Domain</label>
+                    <input name="domain" required placeholder="app.example.com"
+                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Scheme</label>
+                    <select name="target_scheme"
+                            class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                        <option value="http">http</option>
+                        <option value="https">https</option>
+                    </select>
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Target host</label>
+                    <input name="target_host" required value="127.0.0.1"
+                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Port</label>
+                    <input name="target_port" type="number" required placeholder="3000"
+                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                </div>
+                <div class="md:col-span-2 flex items-end">
+                    <button type="submit"
+                            class="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
+                        Create →
+                    </button>
+                </div>
+                <div class="md:col-span-12 flex items-center gap-6 pt-2">
+                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                        <input type="checkbox" name="ssl_enabled" class="accent-cyan-400">
+                        Auto-SSL (certbot)
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                        <input type="checkbox" name="websocket" checked class="accent-cyan-400">
+                        WebSocket support
+                    </label>
+                </div>
+                <div id="form-error" class="md:col-span-12 hidden text-sm text-red-300 border border-red-500/40 bg-red-500/10 px-4 py-2"></div>
+            </form>
+        </section>
+
+        <!-- Proxy list -->
+        <section>
+            <div class="flex items-baseline justify-between mb-4">
+                <h2 class="text-xs uppercase tracking-[0.3em] text-slate-500">// Active proxies</h2>
+                <span id="proxy-count" class="text-xs text-slate-600">0 entries</span>
+            </div>
+
+            <div id="proxy-list" class="space-y-2">
+                <!-- proxies rendered here -->
+            </div>
+
+            <div id="empty-state" class="hidden text-center py-16 border border-dashed border-slate-800">
+                <p class="text-slate-500 text-sm">No proxies configured yet.</p>
+                <p class="text-slate-600 text-xs mt-1">Add one above to get started.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 max-w-md border border-slate-700 bg-slate-900 px-5 py-3 text-sm shadow-2xl z-50"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}
