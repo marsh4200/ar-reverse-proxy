@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 60 * 12  # 12 hours
 
     # Update system
-    GITHUB_REPO: str = os.getenv("ARRP_GITHUB_REPO", "yourusername/ar-reverse-proxy")
+    GITHUB_REPO: str = os.getenv("ARRP_GITHUB_REPO", "marsh4200/ar-reverse-proxy")
     GITHUB_BRANCH: str = os.getenv("ARRP_GITHUB_BRANCH", "main")
     INSTALL_DIR: Path = Path(os.getenv("ARRP_INSTALL_DIR", "/opt/ar-reverse-proxy"))
 

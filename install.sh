@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # -------- CONFIGURE THESE FOR YOUR FORK ----------
-GITHUB_REPO="${ARRP_GITHUB_REPO:-yourusername/ar-reverse-proxy}"
+GITHUB_REPO="${ARRP_GITHUB_REPO:-marsh4200/ar-reverse-proxy}"
 GITHUB_BRANCH="${ARRP_GITHUB_BRANCH:-main}"
 # -------------------------------------------------
 

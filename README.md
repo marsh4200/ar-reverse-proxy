@@ -21,8 +21,6 @@ The installer:
 
 When it finishes, the dashboard is at `http://<server-ip>:9913` with the default login `admin` / `admin`. Change the password by editing `ARRP_ADMIN_PASS` in `/etc/ar-reverse-proxy/env` before first start, or by replacing the user row in SQLite afterward.
 
-> **Before publishing your fork:** edit the `GITHUB_REPO` variable at the top of `install.sh` so the one-liner clones your repo.
-
 ## What it does
 
 - Add a reverse proxy from the dashboard (domain → host:port) and the backend writes `/etc/nginx/sites-available/arrp_<domain>.conf`, symlinks it into `sites-enabled`, runs `nginx -t`, and reloads nginx. If `nginx -t` fails, the new config is rolled back automatically.
