@@ -72,6 +72,17 @@ def run_update() -> tuple[bool, str]:
     if not script.exists():
         return False, f"update.sh not found at {script}"
 
+    # Defense against the classic "git clone dropped the executable bit" footgun.
+    # Without this, nohup fails with "Permission denied" and the user gets
+    # stuck in an update loop (script never runs -> VERSION never changes ->
+    # banner never goes away). chmod is idempotent and cheap.
+    try:
+        import stat
+        st = script.stat()
+        script.chmod(st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    except Exception as e:
+        logger.warning("Could not chmod %s: %s", script, e)
+
     try:
         # nohup + detach so the parent (us) can return before systemd kills it
         subprocess.Popen(

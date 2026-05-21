@@ -14,9 +14,11 @@ SERVICE_NAME="ar-reverse-proxy"
 LOG="/var/log/ar-reverse-proxy-update.log"
 GITHUB_BRANCH="${ARRP_GITHUB_BRANCH:-main}"
 
-# Re-exec detached from parent so systemctl restart can't kill us mid-flight
+# Re-exec detached from parent so systemctl restart can't kill us mid-flight.
+# Explicit /bin/bash so this works even if update.sh somehow lost its +x bit
+# (which has happened: GitHub web-UI uploads strip the executable bit).
 if [[ "${ARRP_UPDATE_DETACHED:-0}" != "1" ]]; then
-    ARRP_UPDATE_DETACHED=1 nohup "$0" "$@" </dev/null >>"$LOG" 2>&1 &
+    ARRP_UPDATE_DETACHED=1 nohup /bin/bash "$0" "$@" </dev/null >>"$LOG" 2>&1 &
     disown
     exit 0
 fi
