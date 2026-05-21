@@ -7,7 +7,7 @@ A self-hosted reverse proxy manager for Ubuntu 24.04. FastAPI + SQLite + nginx +
 One line, on a fresh Ubuntu 24.04 box (run as root or with sudo):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/ar-reverse-proxy/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/marsh4200/ar-reverse-proxy/main/install.sh | sudo bash
 ```
 
 The installer:
