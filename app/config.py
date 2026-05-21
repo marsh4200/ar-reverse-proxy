@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "AR Reverse Proxy"
     HOST: str = "0.0.0.0"
-    PORT: int = 9913
+    PORT: int = 9914
 
     # Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

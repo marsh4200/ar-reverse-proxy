@@ -17,9 +17,9 @@ The installer:
 - Creates a Python venv and installs requirements
 - Writes `/etc/ar-reverse-proxy/env` with a freshly generated `SECRET_KEY`
 - Registers and starts the `ar-reverse-proxy` systemd service
-- Opens ports 80, 443, and 9913 via `ufw`
+- Opens ports 80, 443, and 9914 via `ufw`
 
-When it finishes, the dashboard is at `http://<server-ip>:9913` with the default login `admin` / `admin`. Change the password by editing `ARRP_ADMIN_PASS` in `/etc/ar-reverse-proxy/env` before first start, or by replacing the user row in SQLite afterward.
+When it finishes, the dashboard is at `http://<server-ip>:9914` with the default login `admin` / `admin`. Change the password by editing `ARRP_ADMIN_PASS` in `/etc/ar-reverse-proxy/env` before first start, or by replacing the user row in SQLite afterward.
 
 ## What it does
 
@@ -78,7 +78,7 @@ ar-reverse-proxy/
 - **SQLite** via SQLAlchemy at `/var/lib/ar-reverse-proxy/arrp.db`
 - **JWT** (HS256) in an httpOnly cookie for session auth
 - **TailwindCSS** via CDN (no build step)
-- **systemd** unit running uvicorn on `:9913`
+- **systemd** unit running uvicorn on `:9914`
 
 ## Operations
 
@@ -95,6 +95,6 @@ ar-reverse-proxy/
 
 ## Security notes
 
-- Runs as **root** because it needs to write nginx config, reload nginx, and invoke certbot. Don't expose port 9913 to the public internet — put the dashboard itself behind an nginx vhost with SSL + IP allow-list, or bind it to `127.0.0.1` and tunnel.
+- Runs as **root** because it needs to write nginx config, reload nginx, and invoke certbot. Don't expose port 9914 to the public internet — put the dashboard itself behind an nginx vhost with SSL + IP allow-list, or bind it to `127.0.0.1` and tunnel.
 - The default `admin`/`admin` credentials exist purely for first-run bootstrap. Change them.
 - `SECRET_KEY` is generated once by the installer and persisted in `/etc/ar-reverse-proxy/env`. Rotating it invalidates all sessions.

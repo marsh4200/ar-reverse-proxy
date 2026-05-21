@@ -17,7 +17,7 @@ INSTALL_DIR="/opt/ar-reverse-proxy"
 DATA_DIR="/var/lib/ar-reverse-proxy"
 ENV_DIR="/etc/ar-reverse-proxy"
 SERVICE_NAME="ar-reverse-proxy"
-PORT=9913
+PORT=9914
 
 # Colors
 C_CYAN='\033[1;36m'; C_GREEN='\033[1;32m'; C_RED='\033[1;31m'; C_DIM='\033[2m'; C_OFF='\033[0m'
