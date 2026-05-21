@@ -1,5 +1,5 @@
-// Dashboard logic for ar-reverse-proxy
-// Talks to /api/proxies and /api/update. Cookie auth handles itself.
+// Dashboard logic for ar-reverse-proxy.
+// Cookie auth (httpOnly) handles itself - we just fetch with credentials.
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -14,12 +14,19 @@ function toast(msg, kind = "info") {
     setTimeout(() => el.classList.add("hidden"), 4500);
 }
 
-// ---------- Proxies ----------
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+}
+
+// ============================================================
+// PROXIES
+// ============================================================
 async function loadProxies() {
     const r = await fetch("/api/proxies");
     if (!r.ok) { toast("Failed to load proxies", "error"); return; }
-    const data = await r.json();
-    renderProxies(data);
+    renderProxies(await r.json());
 }
 
 function renderProxies(items) {
@@ -38,7 +45,7 @@ function renderProxies(items) {
         <div class="group border border-slate-800 hover:border-slate-700 bg-slate-900/30 transition-colors">
             <div class="grid grid-cols-12 items-center px-5 py-4 gap-4">
                 <div class="col-span-12 md:col-span-5">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-base text-slate-100">${escapeHtml(p.domain)}</span>
                         ${p.ssl_enabled
                             ? '<span class="text-[10px] uppercase tracking-widest text-green-400 border border-green-500/40 px-1.5 py-0.5">ssl</span>'
@@ -46,10 +53,13 @@ function renderProxies(items) {
                         ${p.websocket
                             ? '<span class="text-[10px] uppercase tracking-widest text-cyan-400/80 border border-cyan-500/30 px-1.5 py-0.5">ws</span>'
                             : ''}
+                        ${p.host_header_override
+                            ? '<span class="text-[10px] uppercase tracking-widest text-purple-400/80 border border-purple-500/30 px-1.5 py-0.5">ext</span>'
+                            : ''}
                     </div>
                     ${p.notes ? `<div class="text-xs text-slate-500 mt-1">${escapeHtml(p.notes)}</div>` : ""}
                 </div>
-                <div class="col-span-8 md:col-span-5 text-sm text-slate-400">
+                <div class="col-span-8 md:col-span-5 text-sm text-slate-400 truncate">
                     <span class="text-slate-600">→</span>
                     ${escapeHtml(p.target_scheme)}://${escapeHtml(p.target_host)}:${p.target_port}
                 </div>
@@ -76,12 +86,6 @@ function renderProxies(items) {
     });
 }
 
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-}
-
 async function createProxy(e) {
     e.preventDefault();
     const form = e.target;
@@ -91,9 +95,9 @@ async function createProxy(e) {
         target_host: fd.get("target_host"),
         target_port: parseInt(fd.get("target_port"), 10),
         target_scheme: fd.get("target_scheme"),
+        host_header_override: fd.get("host_header_override") || "",
         ssl_enabled: fd.get("ssl_enabled") === "on",
         websocket: fd.get("websocket") === "on",
-        host_header_override: (fd.get("host_header_override") || "").trim(),
         notes: "",
     };
 
@@ -143,29 +147,117 @@ async function issueSSL(id) {
     }
 }
 
-// ---------- Update system ----------
+// ============================================================
+// SETTINGS PANEL
+// ============================================================
+function openSettings() {
+    $("#settings-overlay").classList.remove("hidden");
+    requestAnimationFrame(() => {
+        $("#settings-panel").classList.remove("translate-x-full");
+    });
+    // Auto-refresh update status when panel opens
+    checkUpdate();
+}
+
+function closeSettings() {
+    $("#settings-panel").classList.add("translate-x-full");
+    setTimeout(() => $("#settings-overlay").classList.add("hidden"), 200);
+}
+
+// ============================================================
+// PASSWORD CHANGE
+// ============================================================
+async function changePassword(e) {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const current = fd.get("current_password");
+    const next = fd.get("new_password");
+    const confirm = fd.get("confirm_password");
+
+    const errEl = $("#pw-error");
+    errEl.classList.add("hidden");
+
+    if (next !== confirm) {
+        errEl.textContent = "New password and confirmation do not match.";
+        errEl.classList.remove("hidden");
+        return;
+    }
+
+    const r = await fetch("/api/settings/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: current, new_password: next }),
+    });
+
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        errEl.textContent = err.detail || "Failed to update password.";
+        errEl.classList.remove("hidden");
+        return;
+    }
+
+    form.reset();
+    toast("Password updated.", "success");
+    $("#pw-warning").classList.add("hidden");
+}
+
+async function checkDefaultPassword() {
+    try {
+        const r = await fetch("/api/settings/me");
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.using_default_password) {
+            $("#pw-warning").classList.remove("hidden");
+        }
+    } catch (e) { /* non-critical */ }
+}
+
+// ============================================================
+// UPDATE SYSTEM
+// ============================================================
 async function checkUpdate() {
-    $("#update-label").textContent = "Checking…";
+    const status = $("#settings-update-status");
+    status.textContent = "Checking GitHub…";
+
     const r = await fetch("/api/update/status");
-    if (!r.ok) { toast("Failed to check updates", "error"); return; }
+    if (!r.ok) {
+        status.textContent = "Failed to check.";
+        return;
+    }
     const data = await r.json();
+
     $("#local-version").textContent = data.local_version;
+    $("#settings-local-version").textContent = data.local_version;
+
+    const remoteEl = $("#settings-remote-version");
+    const runBtn = $("#btn-run-update");
+    const pill = $("#btn-update-pill");
+
+    if (data.remote_version) {
+        remoteEl.innerHTML = `<span class="${data.update_available ? 'text-cyan-300 font-bold' : 'text-slate-100'}">v${data.remote_version}</span>`;
+    } else {
+        remoteEl.innerHTML = '<span class="text-slate-500">unreachable</span>';
+    }
 
     if (data.update_available) {
-        $("#banner-local").textContent = `v${data.local_version}`;
-        $("#banner-remote").textContent = `v${data.remote_version}`;
-        $("#update-banner").classList.remove("hidden");
-        $("#update-label").textContent = `Update → v${data.remote_version}`;
+        status.innerHTML = `<span class="text-cyan-300">Update available: v${data.local_version} → v${data.remote_version}</span>`;
+        runBtn.classList.remove("hidden");
+        $("#pill-remote").textContent = data.remote_version;
+        pill.classList.remove("hidden");
     } else if (data.remote_version) {
-        $("#update-label").textContent = `Up to date · v${data.local_version}`;
-        $("#update-banner").classList.add("hidden");
+        status.innerHTML = `<span class="text-green-400">You're on the latest version.</span>`;
+        runBtn.classList.add("hidden");
+        pill.classList.add("hidden");
     } else {
-        $("#update-label").textContent = "Update check failed";
+        status.textContent = "Could not reach GitHub.";
+        runBtn.classList.add("hidden");
+        pill.classList.add("hidden");
     }
 }
 
 async function runUpdate() {
-    if (!confirm("Pull latest from GitHub and restart the service?")) return;
+    if (!confirm("Pull latest from GitHub and restart the service? You'll be temporarily disconnected.")) return;
 
     const btn = $("#btn-run-update");
     btn.disabled = true;
@@ -182,7 +274,6 @@ async function runUpdate() {
 
         if (data.ok) {
             log.textContent += "→ Service will restart shortly. Waiting…\n";
-            // Poll /healthz until it comes back, then reload.
             await waitForRestart(log);
             log.textContent += "→ Service is back online. Reloading…\n";
             setTimeout(() => location.reload(), 1500);
@@ -199,9 +290,8 @@ async function runUpdate() {
 }
 
 async function waitForRestart(log) {
-    // Poll every 2s for up to 90s
     for (let i = 0; i < 45; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
         try {
             const r = await fetch("/healthz", { cache: "no-store" });
             if (r.ok) return true;
@@ -212,11 +302,28 @@ async function waitForRestart(log) {
     return false;
 }
 
-// ---------- Boot ----------
+// ============================================================
+// BOOT
+// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Proxies
     $("#proxy-form").addEventListener("submit", createProxy);
-    $("#btn-update").addEventListener("click", checkUpdate);
+
+    // Settings panel
+    $("#btn-settings").addEventListener("click", openSettings);
+    $("#btn-close-settings").addEventListener("click", closeSettings);
+    $("#settings-overlay").addEventListener("click", closeSettings);
+    $("#btn-update-pill").addEventListener("click", openSettings);
+    const warnBtn = $("#btn-open-settings-from-warning");
+    if (warnBtn) warnBtn.addEventListener("click", openSettings);
+
+    // Settings actions
+    $("#pw-form").addEventListener("submit", changePassword);
+    $("#btn-check-update").addEventListener("click", checkUpdate);
     $("#btn-run-update").addEventListener("click", runUpdate);
+
+    // Initial loads
     loadProxies();
     checkUpdate();
+    checkDefaultPassword();
 });

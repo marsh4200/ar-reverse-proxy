@@ -15,9 +15,19 @@
                 <span class="text-xs text-slate-500">v<span id="local-version">{{ version }}</span></span>
             </div>
             <div class="flex items-center gap-3">
-                <button id="btn-update"
-                        class="text-xs uppercase tracking-widest px-3 py-2 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 transition-colors">
-                    <span id="update-label">Check for updates</span>
+                <!-- Update available pill (only shows if remote > local) -->
+                <button id="btn-update-pill"
+                        class="hidden text-xs uppercase tracking-widest px-3 py-2 border border-cyan-500/60 text-cyan-300 hover:bg-cyan-500/10 transition-colors">
+                    <span class="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
+                    Update → v<span id="pill-remote"></span>
+                </button>
+                <button id="btn-settings"
+                        class="text-xs uppercase tracking-widest px-3 py-2 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 transition-colors flex items-center gap-2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Settings
                 </button>
                 <span class="text-slate-700">·</span>
                 <span class="text-xs text-slate-500">{{ user.username }}</span>
@@ -40,21 +50,27 @@
             </p>
         </div>
 
-        <!-- Update banner -->
-        <div id="update-banner" class="hidden mb-8 border border-cyan-500/40 bg-cyan-500/5 p-5">
+        <!-- Default password warning (only shown if still using admin/admin) -->
+        <div id="pw-warning" class="hidden mb-8 border border-amber-500/40 bg-amber-500/5 p-5">
             <div class="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                    <div class="text-xs uppercase tracking-widest text-cyan-300 mb-1">Update available</div>
-                    <div class="text-sm text-slate-300">
-                        <span id="banner-local"></span> → <span id="banner-remote" class="text-cyan-300 font-bold"></span>
+                <div class="flex items-start gap-3">
+                    <svg class="text-amber-400 mt-0.5" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div>
+                        <div class="text-xs uppercase tracking-widest text-amber-300 mb-1">Default password in use</div>
+                        <div class="text-sm text-slate-300">
+                            You're still using <span class="font-mono text-amber-300">admin / admin</span>. Change it now in Settings.
+                        </div>
                     </div>
                 </div>
-                <button id="btn-run-update"
-                        class="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-5 py-2 text-xs uppercase tracking-widest transition-colors">
-                    Install update →
+                <button id="btn-open-settings-from-warning"
+                        class="bg-amber-400 hover:bg-amber-300 text-black font-bold px-5 py-2 text-xs uppercase tracking-widest transition-colors">
+                    Change password →
                 </button>
             </div>
-            <div id="update-log" class="hidden mt-4 text-xs text-slate-400 font-mono whitespace-pre-wrap border-t border-cyan-500/20 pt-3"></div>
         </div>
 
         <!-- Add form -->
@@ -130,6 +146,102 @@
             </div>
         </section>
     </main>
+
+    <!-- Settings slide-over panel -->
+    <div id="settings-overlay" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity"></div>
+    <aside id="settings-panel"
+           class="fixed top-0 right-0 h-full w-full max-w-md bg-[#0b0e14] border-l border-slate-800 z-50 transform translate-x-full transition-transform duration-200 overflow-y-auto">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-cyan-400/80 mb-1">// Settings</p>
+                    <h2 class="text-3xl text-slate-100" style="font-family: 'Instrument Serif', serif;">
+                        Configuration
+                    </h2>
+                </div>
+                <button id="btn-close-settings"
+                        class="text-slate-500 hover:text-slate-200 text-2xl leading-none">×</button>
+            </div>
+
+            <!-- Account section -->
+            <section class="mb-10">
+                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Account</h3>
+                <div class="border border-slate-800 bg-slate-900/30 p-4 mb-4">
+                    <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Signed in as</div>
+                    <div class="text-base text-slate-100">{{ user.username }}</div>
+                </div>
+
+                <form id="pw-form" class="border border-slate-800 bg-slate-900/30 p-4 space-y-3">
+                    <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Change password</div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Current password</label>
+                        <input type="password" name="current_password" required autocomplete="current-password"
+                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">New password (min 8 chars)</label>
+                        <input type="password" name="new_password" required minlength="8" autocomplete="new-password"
+                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Confirm new password</label>
+                        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password"
+                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                    </div>
+                    <div id="pw-error" class="hidden text-xs text-red-300 border border-red-500/40 bg-red-500/10 px-3 py-2"></div>
+                    <button type="submit"
+                            class="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
+                        Update password →
+                    </button>
+                </form>
+            </section>
+
+            <!-- Update section -->
+            <section class="mb-10">
+                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Updates</h3>
+                <div class="border border-slate-800 bg-slate-900/30 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-500">Installed</div>
+                            <div class="text-base text-slate-100">v<span id="settings-local-version">{{ version }}</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] uppercase tracking-widest text-slate-500">Latest on GitHub</div>
+                            <div class="text-base" id="settings-remote-version">
+                                <span class="text-slate-500">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settings-update-status" class="text-xs text-slate-500 mb-3"></div>
+
+                    <div class="flex gap-2">
+                        <button id="btn-check-update"
+                                class="flex-1 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 text-xs uppercase tracking-widest py-2 transition-colors">
+                            Check now
+                        </button>
+                        <button id="btn-run-update"
+                                class="hidden flex-1 bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
+                            Install →
+                        </button>
+                    </div>
+
+                    <div id="update-log" class="hidden mt-4 text-xs text-slate-400 font-mono whitespace-pre-wrap border-t border-slate-800 pt-3 max-h-64 overflow-y-auto"></div>
+                </div>
+            </section>
+
+            <!-- About section -->
+            <section>
+                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// About</h3>
+                <div class="border border-slate-800 bg-slate-900/30 p-4 text-xs text-slate-500 space-y-2">
+                    <div class="flex justify-between"><span>Service</span><span class="text-slate-300">ar-reverse-proxy</span></div>
+                    <div class="flex justify-between"><span>Port</span><span class="text-slate-300 font-mono">9914</span></div>
+                    <div class="flex justify-between"><span>Data</span><span class="text-slate-300 font-mono">/var/lib/ar-reverse-proxy</span></div>
+                    <div class="flex justify-between"><span>Logs</span><span class="text-slate-300 font-mono">journalctl -u ar-reverse-proxy</span></div>
+                </div>
+            </section>
+        </div>
+    </aside>
 
     <!-- Toast -->
     <div id="toast" class="hidden fixed bottom-6 right-6 max-w-md border border-slate-700 bg-slate-900 px-5 py-3 text-sm shadow-2xl z-50"></div>
