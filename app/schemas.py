@@ -4,6 +4,28 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 
+def _clean_hostname(v: str) -> str:
+    """
+    Normalize a hostname value.
+
+    Users tend to paste full URLs ('https://example.com/') into fields that
+    want just a hostname. Strip the scheme, any path, and trailing dots.
+    This prevents the classic bug where the Host header ends up as
+    `Host: https://example.com` and the upstream returns 400.
+    """
+    v = v.strip().lower()
+    # Strip scheme
+    for prefix in ("https://", "http://", "//"):
+        if v.startswith(prefix):
+            v = v[len(prefix):]
+    # Strip path
+    if "/" in v:
+        v = v.split("/", 1)[0]
+    # Strip trailing dot (FQDN form)
+    v = v.rstrip(".")
+    return v
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -22,9 +44,32 @@ class ProxyCreate(BaseModel):
     @field_validator("domain")
     @classmethod
     def validate_domain(cls, v: str) -> str:
-        v = v.strip().lower()
-        if " " in v or "/" in v:
-            raise ValueError("Domain must not contain spaces or slashes")
+        v = _clean_hostname(v)
+        if " " in v:
+            raise ValueError("Domain must not contain spaces")
+        if not v:
+            raise ValueError("Domain is required")
+        return v
+
+    @field_validator("target_host")
+    @classmethod
+    def validate_target_host(cls, v: str) -> str:
+        v = _clean_hostname(v)
+        if not v:
+            raise ValueError("Target host is required")
+        if " " in v:
+            raise ValueError("Target host must not contain spaces")
+        return v
+
+    @field_validator("host_header_override")
+    @classmethod
+    def validate_host_header(cls, v: str) -> str:
+        # Empty is fine - means "pass through visitor's Host header".
+        if not v or not v.strip():
+            return ""
+        v = _clean_hostname(v)
+        if " " in v:
+            raise ValueError("Host header override must not contain spaces")
         return v
 
 
@@ -36,6 +81,20 @@ class ProxyUpdate(BaseModel):
     websocket: Optional[bool] = None
     host_header_override: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("target_host")
+    @classmethod
+    def validate_target_host(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _clean_hostname(v)
+
+    @field_validator("host_header_override")
+    @classmethod
+    def validate_host_header(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return v
+        return _clean_hostname(v)
 
 
 class ProxyOut(BaseModel):

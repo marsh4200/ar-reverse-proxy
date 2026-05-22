@@ -91,7 +91,7 @@
                     </select>
                 </div>
                 <div class="md:col-span-3">
-                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Target host</label>
+                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Target host <span class="text-slate-600 normal-case tracking-normal">— hostname or IP, no scheme</span></label>
                     <input name="target_host" required value="127.0.0.1"
                            class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
                 </div>
@@ -109,9 +109,9 @@
                 <div class="md:col-span-12 flex flex-col md:flex-row gap-4 pt-2 border-t border-slate-800/60">
                     <div class="flex-1">
                         <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                            Host header override <span class="text-slate-600 normal-case tracking-normal">— optional, for external HTTPS backends (e.g. <code class="text-cyan-400/70">myapp.base44.app</code>)</span>
+                            Host header override <span class="text-slate-600 normal-case tracking-normal">— hostname only, no <code class="text-cyan-400/70">https://</code> (e.g. <code class="text-cyan-400/70">myapp.base44.app</code>)</span>
                         </label>
-                        <input name="host_header_override" placeholder="leave empty to forward visitor's domain"
+                        <input name="host_header_override" placeholder="myapp.base44.app"
                                class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
                     </div>
                 </div>
