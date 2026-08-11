@@ -20,6 +20,7 @@ from app.models import User
 from app.routers import auth as auth_router
 from app.routers import proxies as proxies_router
 from app.routers import settings as settings_router
+from app.routers import system as system_router
 from app.routers import update as update_router
 from app.services import update_service
 
@@ -39,6 +40,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(auth_router.router)
 app.include_router(proxies_router.router)
 app.include_router(settings_router.router)
+app.include_router(system_router.router)
 app.include_router(update_router.router)
 
 

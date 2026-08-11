@@ -1,6 +1,7 @@
-# ar-reverse-proxy
+# AR Reverse Proxy (ar-reverse-proxy)
 
-A self-hosted reverse proxy manager for Ubuntu 24.04. FastAPI + SQLite + nginx + Let's Encrypt, with a GitHub-based in-app update system.
+A self-hosted reverse proxy manager for Ubuntu 24.04. FastAPI + SQLite + nginx + Let's Encrypt,
+with a GitHub-based in-app update system and a dark control-plane UI.
 
 ## Install
 
@@ -19,7 +20,31 @@ The installer:
 - Registers and starts the `ar-reverse-proxy` systemd service
 - Opens ports 80, 443, and 9914 via `ufw`
 
-When it finishes, the dashboard is at `http://<server-ip>:9914` with the default login `admin` / `admin`. Change the password by editing `ARRP_ADMIN_PASS` in `/etc/ar-reverse-proxy/env` before first start, or by replacing the user row in SQLite afterward.
+When it finishes, the dashboard is at `http://<server-ip>:9914` with the default login `admin` / `admin`. Change the password from **Settings → Change password** in the dashboard; the panel warns you until you do. You can also set `ARRP_ADMIN_PASS` in `/etc/ar-reverse-proxy/env` before the first start.
+
+## Interface
+
+The dashboard is a single control plane for every route:
+
+- **Route lines** — each proxy is drawn as the hop it is: public domain on the left,
+  upstream on the right, with TLS / WebSocket / external-host state on the connector.
+- **At a glance** — total routes, how many are HTTPS-secured, how many pass WebSockets,
+  and live nginx service state.
+- **Create, edit and delete in place** — the Host header override only appears for HTTPS
+  upstreams, where it actually matters.
+- **Settings drawer** — account, password, updates and host details.
+- Responsive down to a phone, keyboard accessible, and honours `prefers-reduced-motion`.
+
+The UI ships as hand-written CSS with no build step and no CDN dependency, so it renders
+correctly on an isolated network.
+
+![Dashboard](screenshots/desktop-dashboard.png)
+
+| New route | Settings |
+|---|---|
+| ![New route](screenshots/desktop-modal-new.png) | ![Settings](screenshots/desktop-settings.png) |
+
+More, including tablet and mobile layouts, in [`screenshots/`](screenshots).
 
 ## What it does
 
@@ -29,7 +54,7 @@ When it finishes, the dashboard is at `http://<server-ip>:9914` with the default
 
 ## Updates
 
-Click **Check for updates** in the header. The backend fetches `VERSION` from `raw.githubusercontent.com/<repo>/<branch>/VERSION` and compares it to the local `VERSION` file.
+Open **Settings → Updates** and click **Check now**. The backend fetches `VERSION` from `raw.githubusercontent.com/<repo>/<branch>/VERSION` and compares it to the local `VERSION` file.
 
 If a newer version exists, the banner shows it and **Install update** triggers `scripts/update.sh`, which:
 

@@ -1,251 +1,460 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · AR Reverse Proxy{% endblock %}
+{% import "_brand.html" as brand %}
+{% block title %}Routes · AR Reverse Proxy{% endblock %}
 
 {% block content %}
-<div class="min-h-screen">
-    <!-- Header -->
-    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur-sm sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
-                    <span class="text-xs uppercase tracking-[0.3em] text-cyan-400/80">ar-reverse-proxy</span>
-                </div>
-                <span class="text-slate-700">/</span>
-                <span class="text-xs text-slate-500">v<span id="local-version">{{ version }}</span></span>
+<div class="shell">
+
+    <!-- ══ Topbar ═══════════════════════════════════════════════════ -->
+    <header class="topbar">
+        <div class="wrap">
+            <div class="brand">
+                {{ brand.mark(34) }}
+                {{ brand.wordmark() }}
             </div>
-            <div class="flex items-center gap-3">
-                <!-- Update available pill (only shows if remote > local) -->
-                <button id="btn-update-pill"
-                        class="hidden text-xs uppercase tracking-widest px-3 py-2 border border-cyan-500/60 text-cyan-300 hover:bg-cyan-500/10 transition-colors">
-                    <span class="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
-                    Update → v<span id="pill-remote"></span>
+
+            <div class="spacer"></div>
+
+            <!-- nginx health -->
+            <div class="pill" id="nginx-pill" title="nginx service state">
+                <span class="dot" id="nginx-dot"><i></i></span>
+                <span id="nginx-label" class="pill-label">nginx</span>
+            </div>
+
+            <!-- Update available -->
+            <button class="pill pill-signal hidden" id="update-pill">
+                <span class="dot signal pulse"><i></i></span>
+                <span class="pill-label">Update to v<span id="pill-version"></span></span>
+            </button>
+
+            <!-- Account -->
+            <div class="menu-wrap">
+                <button class="menu-trigger" id="menu-trigger" aria-expanded="false" aria-haspopup="true">
+                    <span class="avatar">{{ user.username[:2]|upper }}</span>
+                    <span style="text-align:left;line-height:1.25" class="acct-text">
+                        <span style="display:block;font-size:12px;font-weight:600">{{ user.username }}</span>
+                        <span style="display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-ghost)">
+                            {{ 'admin' if user.is_admin else 'user' }}
+                        </span>
+                    </span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--ink-ghost)"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
-                <button id="btn-settings"
-                        class="text-xs uppercase tracking-widest px-3 py-2 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 transition-colors flex items-center gap-2">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                    Settings
-                </button>
-                <span class="text-slate-700">·</span>
-                <span class="text-xs text-slate-500">{{ user.username }}</span>
-                <a href="/logout" class="text-xs text-slate-400 hover:text-red-300 transition-colors">logout</a>
+
+                <div class="menu hidden" id="account-menu" role="menu">
+                    <div class="menu-head">
+                        <div class="eyebrow">Signed in as</div>
+                        <div class="mono" style="margin-top:4px;font-size:12px">{{ user.username }}</div>
+                    </div>
+                    <div class="menu-sep"></div>
+                    <button class="menu-item" id="menu-settings" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Settings
+                    </button>
+                    <div class="menu-sep"></div>
+                    <a class="menu-item danger" href="/logout" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                        Sign out
+                    </a>
+                </div>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 py-12">
-        <!-- Hero -->
-        <div class="mb-12">
-            <p class="text-xs uppercase tracking-[0.3em] text-cyan-400/80 mb-3">Control plane</p>
-            <h1 class="text-6xl md:text-7xl text-slate-100 leading-none"
-                style="font-family: 'Instrument Serif', serif;">
-                Reverse <em class="text-cyan-300">proxies</em>
-            </h1>
-            <p class="mt-4 text-slate-500 max-w-xl">
-                Route domains to internal services. nginx config is generated,
-                validated, and reloaded automatically. SSL via Let's Encrypt.
-            </p>
-        </div>
+    <!-- ══ Main ═════════════════════════════════════════════════════ -->
+    <main class="wrap" style="padding-top:32px;padding-bottom:48px;flex:1">
+        <div class="stack stagger">
 
-        <!-- Default password warning (only shown if still using admin/admin) -->
-        <div id="pw-warning" class="hidden mb-8 border border-amber-500/40 bg-amber-500/5 p-5">
-            <div class="flex items-start justify-between gap-4 flex-wrap">
-                <div class="flex items-start gap-3">
-                    <svg class="text-amber-400 mt-0.5" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <div>
-                        <div class="text-xs uppercase tracking-widest text-amber-300 mb-1">Default password in use</div>
-                        <div class="text-sm text-slate-300">
-                            You're still using <span class="font-mono text-amber-300">admin / admin</span>. Change it now in Settings.
-                        </div>
+            <!-- Page header -->
+            <div class="row-between" style="align-items:flex-start;flex-wrap:wrap">
+                <div>
+                    <h1 class="page-title">Routes</h1>
+                    <p class="page-sub">
+                        Each route sends one domain to one upstream. Saving a change rewrites the
+                        nginx config, validates it, and reloads the service.
+                    </p>
+                </div>
+                <div class="row" style="gap:8px">
+                    <button class="btn btn-outline" id="btn-refresh" title="Reload routes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        <span class="btn-label">Refresh</span>
+                    </button>
+                    <button class="btn btn-primary" id="btn-new">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        New route
+                    </button>
+                </div>
+            </div>
+
+            <!-- Default password warning -->
+            <div class="alert alert-warn hidden" id="pw-warning" style="align-items:center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                <div style="flex:1;min-width:0">
+                    <div class="alert-title">Change the default password</div>
+                    <div class="alert-body">
+                        This account still uses <code class="mono" style="color:var(--warn)">admin / admin</code>.
+                        Anyone who can reach this page can take over your proxy.
                     </div>
                 </div>
-                <button id="btn-open-settings-from-warning"
-                        class="bg-amber-400 hover:bg-amber-300 text-black font-bold px-5 py-2 text-xs uppercase tracking-widest transition-colors">
-                    Change password →
+                <button class="btn btn-sm btn-secondary" id="btn-fix-password" style="flex-shrink:0">
+                    Change it now
                 </button>
             </div>
-        </div>
 
-        <!-- Add form -->
-        <section class="mb-10">
-            <h2 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Add proxy</h2>
-            <form id="proxy-form" class="border border-slate-800 bg-slate-900/30 p-6 grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-4">
-                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Domain</label>
-                    <input name="domain" required placeholder="app.example.com"
-                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+            <!-- Stats -->
+            <div class="stats">
+                <div class="card stat">
+                    <div class="stat-top">
+                        <div style="min-width:0">
+                            <div class="eyebrow">Total routes</div>
+                            <div class="stat-value" id="stat-total">—</div>
+                            <div class="stat-hint" id="stat-total-hint">Domains served</div>
+                        </div>
+                        <span class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6m0 0 3-4m-3 4 3 4"/><circle cx="18" cy="12" r="3"/></svg>
+                        </span>
+                    </div>
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Scheme</label>
-                    <select name="target_scheme"
-                            class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+
+                <div class="card stat">
+                    <div class="stat-top">
+                        <div style="min-width:0">
+                            <div class="eyebrow">HTTPS secured</div>
+                            <div class="stat-value" id="stat-ssl">—</div>
+                            <div class="stat-hint" id="stat-ssl-hint">Let's Encrypt certificates</div>
+                        </div>
+                        <span class="stat-icon ok" id="stat-ssl-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card stat">
+                    <div class="stat-top">
+                        <div style="min-width:0">
+                            <div class="eyebrow">WebSockets</div>
+                            <div class="stat-value" id="stat-ws">—</div>
+                            <div class="stat-hint">Routes passing upgrades</div>
+                        </div>
+                        <span class="stat-icon info">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4M16 21l4-4-4-4M4 7h11a5 5 0 0 1 5 5M20 17H9a5 5 0 0 1-5-5"/></svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card stat">
+                    <div class="stat-top">
+                        <div style="min-width:0">
+                            <div class="eyebrow">nginx</div>
+                            <div class="stat-value" id="stat-nginx">—</div>
+                            <div class="stat-hint" id="stat-nginx-hint">Service state</div>
+                        </div>
+                        <span class="stat-icon" id="stat-nginx-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route list -->
+            <section class="card">
+                <div class="card-head" style="align-items:center;flex-wrap:wrap;gap:12px">
+                    <div class="input-icon" style="flex:1;min-width:220px;max-width:340px">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input class="control" id="search" type="search" placeholder="Search domain or upstream" aria-label="Search routes">
+                    </div>
+                    <span class="faint" style="font-size:11px" id="route-count"></span>
+                </div>
+
+                <div id="route-list"></div>
+
+                <!-- Empty: no routes at all -->
+                <div class="empty hidden" id="empty-none">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6m0 0 3-4m-3 4 3 4"/><circle cx="18" cy="12" r="3"/></svg>
+                    </div>
+                    <h3>No routes yet</h3>
+                    <p>A route points one of your domains at a service on this machine or elsewhere. Create one to get started.</p>
+                    <button class="btn btn-primary" id="btn-new-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        New route
+                    </button>
+                </div>
+
+                <!-- Empty: search found nothing -->
+                <div class="empty hidden" id="empty-search">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    </div>
+                    <h3>No matches</h3>
+                    <p id="empty-search-text">Nothing matches that search.</p>
+                    <button class="btn btn-outline" id="btn-clear-search">Clear search</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer style="border-top:1px solid var(--line-soft);padding:18px 0">
+        <div class="wrap row-between" style="font-size:11px;color:var(--ink-ghost);flex-wrap:wrap;gap:8px">
+            <span>AR Reverse Proxy — nginx routing &amp; SSL</span>
+            <span class="mono">marsh4200/ar-reverse-proxy</span>
+        </div>
+    </footer>
+</div>
+
+<!-- ══ Route modal (create / edit) ══════════════════════════════════ -->
+<div class="overlay hidden" id="route-overlay"></div>
+<div class="modal hidden" id="route-modal" role="dialog" aria-modal="true" aria-labelledby="route-modal-title">
+    <div class="modal-head">
+        <span class="modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6m0 0 3-4m-3 4 3 4"/><circle cx="18" cy="12" r="3"/></svg>
+        </span>
+        <div style="min-width:0;flex:1">
+            <h2 class="modal-title" id="route-modal-title">New route</h2>
+            <p class="modal-desc" id="route-modal-desc">
+                Point a domain at a service. The nginx config is written and reloaded when you save.
+            </p>
+        </div>
+        <button class="modal-close" data-close-route aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div class="modal-body">
+        <form id="route-form" class="stack" style="gap:16px">
+            <input type="hidden" name="id" value="">
+
+            <div class="field">
+                <label class="field-label" for="f-domain">Public domain<span class="req">*</span></label>
+                <input class="control mono" id="f-domain" name="domain" required spellcheck="false"
+                       placeholder="app.example.com" autocomplete="off">
+                <p class="hint">The address visitors will use. Its DNS must already point at this server.</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:110px 1fr 110px;gap:12px">
+                <div class="field">
+                    <label class="field-label" for="f-scheme">Scheme</label>
+                    <select class="control" id="f-scheme" name="target_scheme">
                         <option value="http">http</option>
                         <option value="https">https</option>
                     </select>
                 </div>
-                <div class="md:col-span-3">
-                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Target host <span class="text-slate-600 normal-case tracking-normal">— hostname or IP, no scheme</span></label>
-                    <input name="target_host" required value="127.0.0.1"
-                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                <div class="field">
+                    <label class="field-label" for="f-host">Upstream host<span class="req">*</span></label>
+                    <input class="control mono" id="f-host" name="target_host" required
+                           spellcheck="false" value="127.0.0.1" autocomplete="off">
                 </div>
-                <div class="md:col-span-1">
-                    <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Port</label>
-                    <input name="target_port" type="number" required placeholder="3000"
-                           class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+                <div class="field">
+                    <label class="field-label" for="f-port">Port<span class="req">*</span></label>
+                    <input class="control mono" id="f-port" name="target_port" type="number"
+                           required min="1" max="65535" placeholder="3000">
                 </div>
-                <div class="md:col-span-2 flex items-end">
-                    <button type="submit"
-                            class="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
-                        Create →
-                    </button>
+            </div>
+            <p class="hint" style="margin-top:-8px">
+                Hostname or IP only — no <code class="mono" style="color:var(--signal-300)">https://</code> and no path.
+            </p>
+
+            <!-- Shown only when scheme = https, because that's the only case it matters -->
+            <div class="field hidden" id="f-hostheader-wrap">
+                <label class="field-label" for="f-hostheader">
+                    Host header override <span class="opt">— optional</span>
+                </label>
+                <input class="control mono" id="f-hostheader" name="host_header_override"
+                       spellcheck="false" placeholder="myapp.base44.app" autocomplete="off">
+                <p class="hint">
+                    Hosted platforms use the Host header to pick which site to serve. Set this to the
+                    hostname the platform gave you.
+                </p>
+            </div>
+
+            <div class="well" style="display:flex;flex-direction:column;gap:14px">
+                <label class="check">
+                    <input type="checkbox" name="websocket" id="f-ws" checked>
+                    <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg></span>
+                    <span class="check-text">
+                        <span class="check-title">Pass WebSocket connections</span>
+                        <span class="check-desc">Needed for live updates, terminals and chat. Harmless if unused.</span>
+                    </span>
+                </label>
+                <label class="check">
+                    <input type="checkbox" name="ssl_enabled" id="f-ssl">
+                    <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg></span>
+                    <span class="check-text">
+                        <span class="check-title">Request an HTTPS certificate now</span>
+                        <span class="check-desc">Runs certbot after the route is created. DNS must already resolve here.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="alert alert-crit hidden" id="route-error" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <div style="min-width:0">
+                    <div class="alert-title" id="route-error-title">Could not save the route</div>
+                    <div class="alert-body mono" id="route-error-body" style="white-space:pre-wrap;word-break:break-word"></div>
                 </div>
-                <div class="md:col-span-12 flex flex-col md:flex-row gap-4 pt-2 border-t border-slate-800/60">
-                    <div class="flex-1">
-                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                            Host header override <span class="text-slate-600 normal-case tracking-normal">— hostname only, no <code class="text-cyan-400/70">https://</code> (e.g. <code class="text-cyan-400/70">myapp.base44.app</code>)</span>
-                        </label>
-                        <input name="host_header_override" placeholder="myapp.base44.app"
-                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
+            </div>
+        </form>
+    </div>
+
+    <div class="modal-foot">
+        <button class="btn btn-ghost" data-close-route>Cancel</button>
+        <button class="btn btn-primary" id="btn-save-route">
+            <span class="btn-label">Create route</span>
+        </button>
+    </div>
+</div>
+
+<!-- ══ Delete confirmation ══════════════════════════════════════════ -->
+<div class="overlay hidden" id="del-overlay"></div>
+<div class="modal modal-sm hidden" id="del-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
+    <div class="modal-head">
+        <span class="modal-icon danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </span>
+        <div style="min-width:0;flex:1">
+            <h2 class="modal-title" id="del-title">Delete this route?</h2>
+            <p class="modal-desc" id="del-desc"></p>
+        </div>
+        <button class="modal-close" data-close-del aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="alert alert-signal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <div class="alert-body" style="margin-top:0">
+                The nginx config for this domain is removed and the service reloaded.
+                Any HTTPS certificate stays on disk and can be reused if you recreate the route.
+            </div>
+        </div>
+    </div>
+    <div class="modal-foot">
+        <button class="btn btn-ghost" data-close-del>Cancel</button>
+        <button class="btn btn-danger" id="btn-confirm-delete">
+            <span class="btn-label">Delete route</span>
+        </button>
+    </div>
+</div>
+
+<!-- ══ Settings drawer ══════════════════════════════════════════════ -->
+<div class="overlay hidden" id="settings-overlay"></div>
+<aside class="drawer" id="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="drawer-head">
+        <div>
+            <div class="eyebrow" style="color:var(--signal-400)">Settings</div>
+            <h2 id="settings-title" style="font-size:20px;margin-top:6px">Configuration</h2>
+        </div>
+        <button class="modal-close" id="btn-close-settings" aria-label="Close settings" style="margin:0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div class="drawer-body">
+        <!-- Account -->
+        <section class="drawer-section">
+            <div class="eyebrow">Account</div>
+            <div class="card">
+                <div class="card-body" style="display:flex;align-items:center;gap:14px">
+                    <span class="avatar" style="width:44px;height:44px;border-radius:14px;font-size:14px">{{ user.username[:2]|upper }}</span>
+                    <div style="min-width:0">
+                        <div class="mono" style="font-size:13px">{{ user.username }}</div>
+                        <div class="faint" style="font-size:11px;margin-top:2px">
+                            {{ 'Administrator' if user.is_admin else 'User' }}
+                        </div>
                     </div>
                 </div>
-                <div class="md:col-span-12 flex items-center gap-6 pt-1">
-                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                        <input type="checkbox" name="ssl_enabled" class="accent-cyan-400">
-                        Auto-SSL (certbot)
-                    </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                        <input type="checkbox" name="websocket" checked class="accent-cyan-400">
-                        WebSocket support
-                    </label>
+            </div>
+
+            <form id="pw-form" class="card" style="margin-top:12px">
+                <div class="card-body stack" style="gap:14px">
+                    <div class="section-title">Change password</div>
+
+                    <div class="field">
+                        <label class="field-label" for="pw-current">Current password</label>
+                        <input class="control" type="password" id="pw-current" name="current_password"
+                               required autocomplete="current-password">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="pw-new">New password</label>
+                        <input class="control" type="password" id="pw-new" name="new_password"
+                               required minlength="8" autocomplete="new-password">
+                        <p class="hint">At least 8 characters.</p>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="pw-confirm">Confirm new password</label>
+                        <input class="control" type="password" id="pw-confirm" name="confirm_password"
+                               required minlength="8" autocomplete="new-password">
+                    </div>
+
+                    <div class="alert alert-crit hidden" id="pw-error" role="alert">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                        <div class="alert-body" id="pw-error-text" style="margin-top:0"></div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-save-pw">
+                        <span class="btn-label">Update password</span>
+                    </button>
                 </div>
-                <div id="form-error" class="md:col-span-12 hidden text-sm text-red-300 border border-red-500/40 bg-red-500/10 px-4 py-2"></div>
             </form>
         </section>
 
-        <!-- Proxy list -->
-        <section>
-            <div class="flex items-baseline justify-between mb-4">
-                <h2 class="text-xs uppercase tracking-[0.3em] text-slate-500">// Active proxies</h2>
-                <span id="proxy-count" class="text-xs text-slate-600">0 entries</span>
-            </div>
-
-            <div id="proxy-list" class="space-y-2">
-                <!-- proxies rendered here -->
-            </div>
-
-            <div id="empty-state" class="hidden text-center py-16 border border-dashed border-slate-800">
-                <p class="text-slate-500 text-sm">No proxies configured yet.</p>
-                <p class="text-slate-600 text-xs mt-1">Add one above to get started.</p>
-            </div>
-        </section>
-    </main>
-
-    <!-- Settings slide-over panel -->
-    <div id="settings-overlay" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity"></div>
-    <aside id="settings-panel"
-           class="fixed top-0 right-0 h-full w-full max-w-md bg-[#0b0e14] border-l border-slate-800 z-50 transform translate-x-full transition-transform duration-200 overflow-y-auto">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-8">
-                <div>
-                    <p class="text-xs uppercase tracking-[0.3em] text-cyan-400/80 mb-1">// Settings</p>
-                    <h2 class="text-3xl text-slate-100" style="font-family: 'Instrument Serif', serif;">
-                        Configuration
-                    </h2>
-                </div>
-                <button id="btn-close-settings"
-                        class="text-slate-500 hover:text-slate-200 text-2xl leading-none">×</button>
-            </div>
-
-            <!-- Account section -->
-            <section class="mb-10">
-                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Account</h3>
-                <div class="border border-slate-800 bg-slate-900/30 p-4 mb-4">
-                    <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Signed in as</div>
-                    <div class="text-base text-slate-100">{{ user.username }}</div>
-                </div>
-
-                <form id="pw-form" class="border border-slate-800 bg-slate-900/30 p-4 space-y-3">
-                    <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Change password</div>
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Current password</label>
-                        <input type="password" name="current_password" required autocomplete="current-password"
-                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">New password (min 8 chars)</label>
-                        <input type="password" name="new_password" required minlength="8" autocomplete="new-password"
-                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Confirm new password</label>
-                        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password"
-                               class="w-full bg-black/40 border border-slate-800 focus:border-cyan-500/60 focus:outline-none px-3 py-2 text-sm text-slate-100">
-                    </div>
-                    <div id="pw-error" class="hidden text-xs text-red-300 border border-red-500/40 bg-red-500/10 px-3 py-2"></div>
-                    <button type="submit"
-                            class="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
-                        Update password →
-                    </button>
-                </form>
-            </section>
-
-            <!-- Update section -->
-            <section class="mb-10">
-                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// Updates</h3>
-                <div class="border border-slate-800 bg-slate-900/30 p-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <div>
-                            <div class="text-[10px] uppercase tracking-widest text-slate-500">Installed</div>
-                            <div class="text-base text-slate-100">v<span id="settings-local-version">{{ version }}</span></div>
+        <!-- Updates -->
+        <section class="drawer-section">
+            <div class="eyebrow">Updates</div>
+            <div class="card">
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div class="well">
+                            <div class="eyebrow">Installed</div>
+                            <div class="mono" style="margin-top:6px;font-size:15px;color:var(--ink)">
+                                v<span id="local-version">{{ version }}</span>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-[10px] uppercase tracking-widest text-slate-500">Latest on GitHub</div>
-                            <div class="text-base" id="settings-remote-version">
-                                <span class="text-slate-500">—</span>
+                        <div class="well" id="remote-well">
+                            <div class="eyebrow">Latest</div>
+                            <div class="mono" style="margin-top:6px;font-size:15px" id="remote-version">
+                                <span class="ghost">—</span>
                             </div>
                         </div>
                     </div>
 
-                    <div id="settings-update-status" class="text-xs text-slate-500 mb-3"></div>
+                    <div id="update-status" style="margin-top:14px"></div>
 
-                    <div class="flex gap-2">
-                        <button id="btn-check-update"
-                                class="flex-1 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 text-xs uppercase tracking-widest py-2 transition-colors">
-                            Check now
+                    <div class="row" style="gap:8px;margin-top:14px">
+                        <button class="btn btn-outline" id="btn-check-update" style="flex:1">
+                            <span class="btn-label">Check now</span>
                         </button>
-                        <button id="btn-run-update"
-                                class="hidden flex-1 bg-cyan-400 hover:bg-cyan-300 text-black font-bold py-2 text-xs uppercase tracking-widest transition-colors">
-                            Install →
+                        <button class="btn btn-primary hidden" id="btn-run-update" style="flex:1">
+                            <span class="btn-label">Install update</span>
                         </button>
                     </div>
 
-                    <div id="update-log" class="hidden mt-4 text-xs text-slate-400 font-mono whitespace-pre-wrap border-t border-slate-800 pt-3 max-h-64 overflow-y-auto"></div>
+                    <div class="logbox hidden" id="update-log" style="margin-top:14px"></div>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- About section -->
-            <section>
-                <h3 class="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">// About</h3>
-                <div class="border border-slate-800 bg-slate-900/30 p-4 text-xs text-slate-500 space-y-2">
-                    <div class="flex justify-between"><span>Service</span><span class="text-slate-300">ar-reverse-proxy</span></div>
-                    <div class="flex justify-between"><span>Port</span><span class="text-slate-300 font-mono">9914</span></div>
-                    <div class="flex justify-between"><span>Data</span><span class="text-slate-300 font-mono">/var/lib/ar-reverse-proxy</span></div>
-                    <div class="flex justify-between"><span>Logs</span><span class="text-slate-300 font-mono">journalctl -u ar-reverse-proxy</span></div>
+        <!-- About -->
+        <section class="drawer-section">
+            <div class="eyebrow">About this server</div>
+            <div class="card">
+                <div class="card-body">
+                    <dl class="dl">
+                        <div class="dl-row"><dt>Service</dt><dd>ar-reverse-proxy</dd></div>
+                        <div class="dl-row"><dt>Hostname</dt><dd id="about-host">—</dd></div>
+                        <div class="dl-row"><dt>Uptime</dt><dd id="about-uptime">—</dd></div>
+                        <div class="dl-row"><dt>nginx</dt><dd id="about-nginx">—</dd></div>
+                        <div class="dl-row"><dt>certbot</dt><dd id="about-certbot">—</dd></div>
+                        <div class="dl-row"><dt>Panel port</dt><dd>9914</dd></div>
+                        <div class="dl-row"><dt>Data</dt><dd>/var/lib/ar-reverse-proxy</dd></div>
+                    </dl>
+                    <p class="hint" style="margin-top:14px">
+                        Logs: <code class="mono" style="color:var(--signal-300)">journalctl -u ar-reverse-proxy</code>
+                    </p>
                 </div>
-            </section>
-        </div>
-    </aside>
-
-    <!-- Toast -->
-    <div id="toast" class="hidden fixed bottom-6 right-6 max-w-md border border-slate-700 bg-slate-900 px-5 py-3 text-sm shadow-2xl z-50"></div>
-</div>
+            </div>
+        </section>
+    </div>
+</aside>
 {% endblock %}
 
 {% block scripts %}
