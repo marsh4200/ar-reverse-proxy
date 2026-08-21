@@ -119,12 +119,24 @@ def render_config(proxy: Proxy) -> str:
 
 
 def write_config(proxy: Proxy) -> Path:
-    """Write the config file and ensure it's enabled."""
+    """
+    Write the config file to sites-available, and sync the sites-enabled
+    symlink to match proxy.enabled.
+
+    Pausing a route (enabled=False) unlinks it from sites-enabled so nginx
+    stops routing it, but leaves the rendered config sitting in
+    sites-available so resuming is just re-linking it - no regeneration,
+    no fresh SSL request, nothing lost.
+    """
     path = config_path(proxy.domain)
     path.write_text(render_config(proxy))
     link = enabled_path(proxy.domain)
-    if not link.exists():
-        link.symlink_to(path)
+    if getattr(proxy, "enabled", True):
+        if not link.exists():
+            link.symlink_to(path)
+    else:
+        if link.is_symlink() or link.exists():
+            link.unlink()
     return path
 
 

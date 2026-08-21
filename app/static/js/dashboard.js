@@ -123,6 +123,8 @@ function renderRoutes() {
     b.addEventListener("click", () => openDelete(byId(b.dataset.del))));
   $$("[data-ssl]", list).forEach((b) =>
     b.addEventListener("click", () => issueSSL(b.dataset.ssl, b)));
+  $$("[data-toggle]", list).forEach((el) =>
+    el.addEventListener("change", () => toggleProxy(el.dataset.toggle, el)));
 }
 
 const byId = (id) => ROUTES.find((p) => String(p.id) === String(id));
@@ -132,8 +134,10 @@ function routeRow(p) {
   const isExternal = p.target_scheme === "https";
   const scheme = p.ssl_enabled ? "https" : "http";
   const port = isExternal && p.target_port === 443 ? "" : `:${p.target_port}`;
+  const enabled = p.enabled !== false;
 
   const tags = [
+    enabled ? "" : '<span class="tag tag-paused">paused</span>',
     p.ssl_enabled
       ? '<span class="tag tag-tls">tls</span>'
       : '<span class="tag tag-off">no tls</span>',
@@ -142,7 +146,7 @@ function routeRow(p) {
   ].filter(Boolean).join("");
 
   return `
-  <div class="route">
+  <div class="route${enabled ? "" : " is-paused"}">
     <div class="route-origin">
       <div class="route-domain">
         <a href="${scheme}://${esc(p.domain)}" target="_blank" rel="noopener noreferrer"
@@ -168,6 +172,11 @@ function routeRow(p) {
     </div>
 
     <div class="route-actions">
+      <label class="switch" title="${enabled ? "Pause this route" : "Resume this route"}">
+        <input type="checkbox" data-toggle="${p.id}" ${enabled ? "checked" : ""}
+               aria-label="${enabled ? "Pause" : "Resume"} ${esc(p.domain)}">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </label>
       ${!p.ssl_enabled ? `
         <button class="btn btn-xs btn-outline" data-ssl="${p.id}" title="Request a Let's Encrypt certificate">
           ${ICON.lock}<span class="btn-label">Secure</span>
@@ -180,6 +189,41 @@ function routeRow(p) {
       </button>
     </div>
   </div>`;
+}
+
+/* ── Pause / resume ────────────────────────────────────────────────────── */
+
+async function toggleProxy(id, input) {
+  const proxy = byId(id);
+  if (!proxy) return;
+  const wasEnabled = proxy.enabled !== false;
+
+  input.disabled = true;
+  try {
+    const res = await fetch(`/api/proxies/${id}/toggle`, { method: "POST" });
+    if (!res.ok) {
+      input.checked = wasEnabled;
+      toast("Could not change route state", await errorText(res), "error");
+      return;
+    }
+    const updated = await res.json();
+    const idx = ROUTES.findIndex((r) => String(r.id) === String(updated.id));
+    if (idx !== -1) ROUTES[idx] = updated;
+
+    renderRoutes();
+    toast(
+      updated.enabled ? "Route resumed" : "Route paused",
+      updated.enabled
+        ? `${updated.domain} is routed again.`
+        : `${updated.domain} is paused. Its nginx config is kept, just not linked in.`,
+      "success",
+    );
+  } catch (e) {
+    input.checked = wasEnabled;
+    toast("Could not change route state", e.message, "error");
+  } finally {
+    input.disabled = false;
+  }
 }
 
 function renderStats() {

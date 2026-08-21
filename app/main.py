@@ -61,6 +61,13 @@ def on_startup() -> None:
                 "VARCHAR(255) NOT NULL DEFAULT ''"
             ))
         logger.info("Migrated: added proxies.host_header_override column")
+    if "enabled" not in proxy_cols:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE proxies ADD COLUMN enabled "
+                "BOOLEAN NOT NULL DEFAULT 1"
+            ))
+        logger.info("Migrated: added proxies.enabled column")
 
     db = SessionLocal()
     try:

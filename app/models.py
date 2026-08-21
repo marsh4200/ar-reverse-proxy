@@ -25,6 +25,7 @@ class Proxy(Base):
     target_scheme = Column(String(8), default="http")  # http or https
     ssl_enabled = Column(Boolean, default=False)
     websocket = Column(Boolean, default=True)
+    enabled = Column(Boolean, default=True, nullable=False)  # paused routes stay in the DB but are unlinked from nginx
     host_header_override = Column(String(255), default="")  # for external HTTPS backends
     notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)

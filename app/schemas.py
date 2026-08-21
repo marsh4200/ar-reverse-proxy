@@ -105,6 +105,7 @@ class ProxyOut(BaseModel):
     target_scheme: str
     ssl_enabled: bool
     websocket: bool
+    enabled: bool
     host_header_override: str
     notes: str
     created_at: datetime

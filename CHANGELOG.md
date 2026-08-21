@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.0 — 2026-08-21
+
+**Added**
+
+- Pause/resume toggle on every route. Flipping it off unlinks the domain from
+  `sites-enabled` (nginx stops routing it) but leaves the generated config in
+  `sites-available` and the route in the database, so flipping it back on is
+  instant — no config regeneration, no fresh certbot request. New
+  `POST /api/proxies/{id}/toggle` endpoint; paused routes show a "paused" tag
+  and a dimmed row in the dashboard.
+
 ## v1.3.0 — 2026-08-11
 
 A full redesign of the web interface. **No breaking changes** — every existing API

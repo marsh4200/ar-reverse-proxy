@@ -300,6 +300,25 @@ select.control option { background: var(--panel); color: var(--ink); }
 .check .check-title { display: block; font-size: 13px; font-weight: 500; color: var(--ink); }
 .check .check-desc { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-faint); }
 
+/* Pause/resume switch */
+.switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-track {
+  display: block; width: 34px; height: 20px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(7,10,18,.8);
+  transition: background-color .18s var(--ease-out), border-color .18s var(--ease-out);
+}
+.switch-thumb {
+  display: block; width: 14px; height: 14px; margin: 2px; border-radius: 999px;
+  background: var(--ink-faint);
+  box-shadow: 0 1px 2px rgba(0,0,0,.4);
+  transition: transform .18s var(--ease-out), background-color .18s var(--ease-out);
+}
+.switch input:checked + .switch-track { background: var(--signal-600); border-color: rgba(14,165,233,.6); }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(14px); background: #fff; }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--signal-400); outline-offset: 2px; }
+.switch input:disabled + .switch-track { opacity: .6; cursor: default; }
+
 /* ── Badges & status ─────────────────────────────────────────────────── */
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -438,6 +457,9 @@ button.pill:hover { border-color: rgba(14,165,233,.5); color: var(--ink); }
 }
 .route:last-child { border-bottom: 0; }
 .route:hover { background: rgba(14,165,233,.035); }
+.route.is-paused .route-domain,
+.route.is-paused .route-upstream { color: var(--ink-faint); }
+.route.is-paused .route-wire { opacity: .2; }
 
 .route-origin { min-width: 0; }
 .route-domain {
@@ -488,6 +510,7 @@ button.pill:hover { border-color: rgba(14,165,233,.5); color: var(--ink); }
 .tag-ws  { border-color: rgba(14,165,233,.35);  background: rgba(14,165,233,.1);  color: var(--signal-300); }
 .tag-ext { border-color: rgba(129,140,248,.35); background: rgba(129,140,248,.1); color: var(--info); }
 .tag-off { border-color: var(--line); color: var(--ink-ghost); }
+.tag-paused { border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.1); color: var(--warn); }
 
 .route-target { min-width: 0; }
 .route-upstream {

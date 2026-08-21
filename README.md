@@ -32,6 +32,8 @@ The dashboard is a single control plane for every route:
   and live nginx service state.
 - **Create, edit and delete in place** — the Host header override only appears for HTTPS
   upstreams, where it actually matters.
+- **Pause any route** with a switch — nginx stops sending it traffic, but the config and
+  certificate stick around, so resuming is instant.
 - **Settings drawer** — account, password, updates and host details.
 - Responsive down to a phone, keyboard accessible, and honours `prefers-reduced-motion`.
 

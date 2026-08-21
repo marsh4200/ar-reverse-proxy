@@ -99,6 +99,38 @@ def delete_proxy(
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, msg)
 
 
+@router.post("/{proxy_id}/toggle", response_model=ProxyOut)
+def toggle_proxy(
+    proxy_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """
+    Flip a route between live and paused.
+
+    Paused routes keep their DB row and nginx config file untouched - only
+    the sites-enabled symlink is removed - so resuming is instant and the
+    route's HTTPS certificate (if any) is never re-requested.
+    """
+    proxy = db.query(Proxy).filter(Proxy.id == proxy_id).first()
+    if not proxy:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Proxy not found")
+
+    proxy.enabled = not proxy.enabled
+    db.commit()
+    db.refresh(proxy)
+
+    ok, msg = nginx_service.apply_proxy(proxy, request_ssl=False)
+    if not ok:
+        # Roll back the DB flag so it still matches what nginx is actually doing.
+        proxy.enabled = not proxy.enabled
+        db.commit()
+        db.refresh(proxy)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, msg)
+
+    return proxy
+
+
 @router.post("/{proxy_id}/ssl")
 def issue_ssl(
     proxy_id: int,
