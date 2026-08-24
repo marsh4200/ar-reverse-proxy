@@ -113,6 +113,19 @@ if ! grep -q "sites-enabled" /etc/nginx/nginx.conf; then
     sed -i '/http {/a \    include /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
 fi
 
+# Disable the distro-shipped default site. It sets `default_server`, so if
+# it's left enabled it silently wins for any request whose Host header
+# doesn't match one of our generated per-domain configs (bare IP hits,
+# domains that haven't propagated yet, typos, ...) - which looks exactly
+# like the reverse proxy "randomly" sending visitors to an unrelated page.
+# ar-reverse-proxy installs its own default_server catch-all on startup
+# (returns 444) so this doesn't leave port 80 without a default at all.
+if [[ -e /etc/nginx/sites-enabled/default ]]; then
+    log "Disabling distro default nginx site…"
+    rm -f /etc/nginx/sites-enabled/default
+    ok "Removed /etc/nginx/sites-enabled/default"
+fi
+
 systemctl enable nginx >/dev/null 2>&1
 systemctl start nginx
 nginx -t >/dev/null 2>&1 && ok "nginx config valid" || die "nginx -t failed"

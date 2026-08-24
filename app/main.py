@@ -22,7 +22,7 @@ from app.routers import proxies as proxies_router
 from app.routers import settings as settings_router
 from app.routers import system as system_router
 from app.routers import update as update_router
-from app.services import update_service
+from app.services import nginx_service, update_service
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +85,19 @@ def on_startup() -> None:
             )
     finally:
         db.close()
+
+    # Make sure requests that don't match a configured domain get an
+    # explicit "no route" response instead of silently falling through to
+    # the distro's default site or whichever route file sorts first
+    # alphabetically. See nginx_service.ensure_default_catchall for why.
+    try:
+        ok, msg = nginx_service.ensure_default_catchall()
+        if ok:
+            logger.info("Default nginx catch-all in place.")
+        else:
+            logger.warning("Could not install default nginx catch-all: %s", msg)
+    except Exception:
+        logger.exception("Unexpected error installing default nginx catch-all")
 
 
 @app.get("/", include_in_schema=False)

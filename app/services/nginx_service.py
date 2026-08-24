@@ -59,6 +59,79 @@ RESOLVER_BLOCK = """
     resolver_timeout 5s;
 """
 
+# Catch-all for any request whose Host header doesn't match one of our
+# per-domain server blocks (bare IP hits, stale/typo'd domains, domains
+# whose DNS hasn't propagated yet, curl without -H Host, etc).
+#
+# Without an explicit default_server, nginx silently designates ONE of the
+# server blocks loaded from sites-enabled/* as the default - usually
+# whichever config file sorts first alphabetically, or, worse, the
+# distro-shipped /etc/nginx/sites-enabled/default (which explicitly sets
+# default_server and therefore always wins). Either way, unmatched traffic
+# gets silently routed to an unrelated site instead of erroring - which
+# looks exactly like "my reverse proxy takes me to a completely different
+# page no matter what domain I configure."
+#
+# This block makes "no matching route" an explicit, obvious outcome (HTTP
+# 444 - connection closed, no response) instead of an accidental one.
+DEFAULT_CATCHALL = """# Managed by ar-reverse-proxy - do not edit by hand
+# Catch-all: closes the connection for any Host header that doesn't match
+# a configured route, instead of silently falling through to another site.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+"""
+
+DEFAULT_CATCHALL_FILENAME = "arrp_00_default_catchall.conf"
+
+# The distro-shipped default site (Debian/Ubuntu nginx package) also marks
+# itself default_server. Two default_server blocks on the same
+# listen/address is a hard `nginx -t` failure, so it must be removed before
+# ours can take effect.
+STOCK_DEFAULT_NAMES = ("default",)
+
+
+def default_catchall_path() -> Path:
+    return settings.NGINX_SITES_DIR / DEFAULT_CATCHALL_FILENAME
+
+
+def default_catchall_enabled_path() -> Path:
+    return settings.NGINX_ENABLED_DIR / DEFAULT_CATCHALL_FILENAME
+
+
+def ensure_default_catchall() -> tuple[bool, str]:
+    """
+    Idempotently install the default_server catch-all and disable any
+    distro-shipped default site that would otherwise conflict with it.
+
+    Safe to call on every startup - it's a no-op if already in place.
+    """
+    try:
+        # Remove the stock default site's *enabled* symlink so it stops
+        # competing for default_server. Leave sites-available alone in case
+        # the admin wants it back.
+        for name in STOCK_DEFAULT_NAMES:
+            stock_link = settings.NGINX_ENABLED_DIR / name
+            if stock_link.is_symlink() or (stock_link.exists() and stock_link != default_catchall_path()):
+                stock_link.unlink()
+                logger.info("Disabled distro default nginx site at %s", stock_link)
+
+        path = default_catchall_path()
+        path.write_text(DEFAULT_CATCHALL)
+        link = default_catchall_enabled_path()
+        if not link.exists():
+            link.symlink_to(path)
+
+        ok, out = test_nginx()
+        if not ok:
+            return False, f"nginx -t failed after installing default catch-all:\n{out}"
+        return reload_nginx()
+    except Exception as e:
+        return False, str(e)
+
 
 def config_path(domain: str) -> Path:
     return settings.NGINX_SITES_DIR / f"arrp_{domain}.conf"
